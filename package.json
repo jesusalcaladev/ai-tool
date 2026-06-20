@@ -12,7 +12,7 @@
   ],
   "main": "src/index.ts",
   "bin": {
-    "ia-tool": "./src/index.ts"
+    "ia-tool": "./dist/index.js"
   },
   "scripts": {
     "start": "bun run src/index.ts",
