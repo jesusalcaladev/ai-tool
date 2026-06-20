@@ -7,7 +7,7 @@ import { runCommitAll } from "./commands/commit-all.ts";
 import { runChangeset } from "./commands/changeset.ts";
 import { runDoctor } from "./commands/doctor.ts";
 import { runCommandAdd } from "./commands/command-add.ts";
-import { runMcpAdd } from "./commands/mcp.ts";
+import { runMcpAdd, runMcpCheck } from "./commands/mcp.ts";
 import { runHookInstall } from "./commands/hook.ts";
 import { runSync } from "./commands/sync.ts";
 
@@ -19,7 +19,7 @@ async function main() {
     switch (command.toLowerCase()) {
       case "install":
       case "init":
-        await runInstall();
+        await runInstall(args[1]);
         break;
       case "commit-all":
         await runCommitAll();
@@ -34,7 +34,11 @@ async function main() {
         await runCommandAdd();
         break;
       case "mcp":
-        await runMcpAdd();
+        if (args[1] === "check" || args[1] === "status") {
+          await runMcpCheck();
+        } else {
+          await runMcpAdd();
+        }
         break;
       case "hook":
         await runHookInstall();
@@ -48,11 +52,13 @@ async function main() {
         console.log("Usage:");
         console.log("  bunx ia-tool               Run interactively (recommended)");
         console.log("  bunx ia-tool install       Install AI agent & command configurations");
+        console.log("  bunx ia-tool install <url> Install remote markdown configuration");
         console.log("  bunx ia-tool commit-all    Automatically stage and semantic commit");
         console.log("  bunx ia-tool changeset     Create a package release changeset");
         console.log("  bunx ia-tool doctor        Verify environment setups");
         console.log("  bunx ia-tool command       Create a custom OpenCode slash command");
         console.log("  bunx ia-tool mcp           Configure MCP servers in opencode.json");
+        console.log("  bunx ia-tool mcp check     Audit and run diagnostics on MCP servers");
         console.log("  bunx ia-tool hook          Install Git commit assistant hook");
         console.log("  bunx ia-tool sync          Synchronize local & global config files");
         console.log("\nOptions:");
@@ -73,11 +79,13 @@ async function main() {
     message: "What would you like to do?",
     options: [
       { value: "install", label: "🔧 Install AI Agent & Command Configurations" },
+      { value: "install-url", label: "📥 Install Remote Config from URL" },
       { value: "commit-all", label: "🚀 Semantic Commit Assistant (commit-all)" },
       { value: "changeset", label: "📦 Create Package Release Changeset" },
       { value: "doctor", label: "🔍 Validate Environment (doctor)" },
       { value: "command", label: "🛠  Create OpenCode Custom Command" },
       { value: "mcp", label: "🔌 Configure OpenCode MCP Servers" },
+      { value: "mcp-check", label: "📋 Audit Configured MCP Servers (check)" },
       { value: "hook", label: "⚓ Install Git Commit Hook" },
       { value: "sync", label: "🔄 Synchronize Local-Global Configs" },
       { value: "exit", label: "❌ Exit" },
@@ -93,6 +101,18 @@ async function main() {
     case "install":
       await runInstall();
       break;
+    case "install-url":
+      const url = await p.text({
+        message: "Enter the remote configuration file URL (e.g. GitHub Gist URL):",
+        validate(value) {
+          if (!value.trim()) return "URL is required.";
+          if (!value.startsWith("http://") && !value.startsWith("https://")) return "Invalid URL scheme.";
+        },
+      });
+      if (!p.isCancel(url)) {
+        await runInstall(url as string);
+      }
+      break;
     case "commit-all":
       await runCommitAll();
       break;
@@ -107,6 +127,9 @@ async function main() {
       break;
     case "mcp":
       await runMcpAdd();
+      break;
+    case "mcp-check":
+      await runMcpCheck();
       break;
     case "hook":
       await runHookInstall();

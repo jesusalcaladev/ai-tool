@@ -18,27 +18,102 @@ function findPackageRoot(startDir: string): string {
     }
     dir = path.dirname(dir);
   }
-  // Fallback
   return path.resolve(startDir, "../..");
 }
 
-export async function runInstall(): Promise<void> {
+export async function runInstall(remoteUrl?: string): Promise<void> {
+  // 1. Remote URL fetch flow
+  if (remoteUrl) {
+    p.intro(pc.cyan("📥 Remote Configuration Downloader"));
+    const s = p.spinner();
+    s.start(`Fetching content from ${remoteUrl}...`);
+
+    try {
+      const response = await fetch(remoteUrl);
+      if (!response.ok) {
+        throw new Error(`Server returned status ${response.status}: ${response.statusText}`);
+      }
+      const text = await response.text();
+      s.stop("Downloaded successfully.");
+
+      // Parse default filename from URL
+      let defaultName = "custom-config.md";
+      try {
+        const urlObj = new URL(remoteUrl);
+        const basename = path.basename(urlObj.pathname);
+        if (basename && basename.includes(".")) {
+          defaultName = basename;
+        }
+      } catch {}
+
+      // Prompt for target category
+      const targetType = await p.select({
+        message: "Where would you like to save this configuration?",
+        options: [
+          { value: "project-agent", label: "Project Agent (.opencode/agents/)" },
+          { value: "project-command", label: "Project Command (.opencode/commands/)" },
+          { value: "global-agent", label: "Global Agent (~/.config/opencode/agents/)" },
+          { value: "global-command", label: "Global Command (~/.config/opencode/commands/)" },
+        ],
+      });
+
+      if (p.isCancel(targetType)) {
+        p.cancel("Cancelled.");
+        return;
+      }
+
+      // Prompt for filename
+      const fileName = await p.text({
+        message: "Enter filename:",
+        initialValue: defaultName,
+        placeholder: defaultName,
+        validate(value) {
+          if (!value.trim()) return "Filename is required.";
+        },
+      });
+
+      if (p.isCancel(fileName)) {
+        p.cancel("Cancelled.");
+        return;
+      }
+
+      let destDir = "";
+      if (targetType === "project-agent") {
+        destDir = path.join(process.cwd(), ".opencode", "agents");
+      } else if (targetType === "project-command") {
+        destDir = path.join(process.cwd(), ".opencode", "commands");
+      } else if (targetType === "global-agent") {
+        destDir = path.join(os.homedir(), ".config", "opencode", "agents");
+      } else {
+        destDir = path.join(os.homedir(), ".config", "opencode", "commands");
+      }
+
+      fs.mkdirSync(destDir, { recursive: true });
+      const destPath = path.join(destDir, fileName as string);
+      
+      fs.writeFileSync(destPath, text, "utf-8");
+      p.outro(pc.green(`✔ Configuration saved successfully at: ${destPath}`));
+    } catch (err) {
+      s.stop("Failed.");
+      p.cancel(`Download failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    return;
+  }
+
+  // 2. Standard wizard installer flow
   p.intro(pc.cyan("🔧 Configuration Installer Wizard"));
 
-  // 1. Resolve package root to find bundled agents and commands
   const currentFileDir = path.dirname(new URL(import.meta.url).pathname);
   const packageRoot = findPackageRoot(currentFileDir);
   
   const agentsSourceDir = path.join(packageRoot, "agents");
   const commandsSourceDir = path.join(packageRoot, "commands");
 
-  // Read available agents
   let availableAgents: string[] = [];
   if (fs.existsSync(agentsSourceDir)) {
     availableAgents = fs.readdirSync(agentsSourceDir).filter(f => f.endsWith(".md"));
   }
   
-  // Read available commands
   let availableCommands: string[] = [];
   if (fs.existsSync(commandsSourceDir)) {
     availableCommands = fs.readdirSync(commandsSourceDir).filter(f => f.endsWith(".md"));
@@ -49,7 +124,6 @@ export async function runInstall(): Promise<void> {
     return;
   }
 
-  // 2. Select AI tools to configure
   const tools = await p.multiselect({
     message: "Select AI tools to install configurations for:",
     options: [
@@ -67,7 +141,6 @@ export async function runInstall(): Promise<void> {
     return;
   }
 
-  // 3. Select which agents/commands to install
   let selectedAgents: string[] = [];
   if (availableAgents.length > 0) {
     const agentChoices = await p.multiselect({
@@ -96,15 +169,13 @@ export async function runInstall(): Promise<void> {
     selectedCommands = cmdChoices as string[];
   }
 
-  // 4. Perform the installation
-  const s = p.spinner();
-  s.start("Installing configurations...");
+  const sInstall = p.spinner();
+  sInstall.start("Installing configurations...");
 
   try {
     for (const tool of tools) {
       if (tool === "opencode") {
-        // Ask if global or project-specific
-        s.stop("Selected OpenCode");
+        sInstall.stop("Selected OpenCode");
         const scope = await p.select({
           message: "Where would you like to install OpenCode configurations?",
           options: [
@@ -118,7 +189,7 @@ export async function runInstall(): Promise<void> {
           return;
         }
 
-        s.start("Installing OpenCode configurations...");
+        sInstall.start("Installing OpenCode configurations...");
         
         let targetBase = "";
         if (scope === "global") {
@@ -150,13 +221,11 @@ export async function runInstall(): Promise<void> {
           }
         }
       } else {
-        // For unified-file tools, concatenate the agents' instructions
         let combinedContent = "# Custom AI Agent Instructions\n\n";
         combinedContent += "This file contains instructions compiled by ia-tool.\n\n";
 
         for (const agent of selectedAgents) {
           const raw = fs.readFileSync(path.join(agentsSourceDir, agent), "utf-8");
-          // Remove frontmatter if present
           let content = raw;
           if (raw.startsWith("---")) {
             const parts = raw.split("---");
@@ -171,7 +240,6 @@ export async function runInstall(): Promise<void> {
           const targetDir = path.join(process.cwd(), ".claude");
           fs.mkdirSync(targetDir, { recursive: true });
           fs.writeFileSync(path.join(targetDir, "CLAUDE.md"), combinedContent, "utf-8");
-          // Also create root CLAUDE.md if not exists or link it
           fs.writeFileSync(path.join(process.cwd(), "CLAUDE.md"), combinedContent, "utf-8");
         }
 
@@ -193,10 +261,10 @@ export async function runInstall(): Promise<void> {
       }
     }
 
-    s.stop(pc.green("✔ Configurations successfully installed!"));
+    sInstall.stop(pc.green("✔ Configurations successfully installed!"));
     p.outro("You are ready to use your new configurations. Enjoy!");
   } catch (error) {
-    s.stop(pc.red("✖ Installation failed."));
+    sInstall.stop(pc.red("✖ Installation failed."));
     p.cancel(error instanceof Error ? error.message : String(error));
   }
 }

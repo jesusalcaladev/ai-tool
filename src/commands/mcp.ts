@@ -1,8 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
-import os from "node:os";
 import * as p from "@clack/prompts";
 import pc from "picocolors";
+import { execSync } from "node:child_process";
 
 interface MCPServerConfig {
   command: string;
@@ -10,7 +10,6 @@ interface MCPServerConfig {
   env?: Record<string, string>;
 }
 
-// Pre-defined premium MCP configurations
 const MCP_TEMPLATES: Record<string, { label: string; command: string; args: string[]; desc: string }> = {
   sqlite: {
     label: "SQLite Server (Local database inspector)",
@@ -41,13 +40,11 @@ const MCP_TEMPLATES: Record<string, { label: string; command: string; args: stri
 export async function runMcpAdd(): Promise<void> {
   p.intro(pc.cyan("🔌 Configure OpenCode MCP Servers"));
 
-  // 1. Resolve configuration file path
   let configPath = path.join(process.cwd(), "opencode.json");
   if (!fs.existsSync(configPath)) {
     if (fs.existsSync(path.join(process.cwd(), "opencode.jsonc"))) {
       configPath = path.join(process.cwd(), "opencode.jsonc");
     } else {
-      // Ask where to create/find config
       const createNew = await p.confirm({
         message: "No local 'opencode.json' found. Initialize a new one in the project root?",
         initialValue: true,
@@ -61,7 +58,6 @@ export async function runMcpAdd(): Promise<void> {
     }
   }
 
-  // 2. Select MCP server to add
   const serverKey = await p.select({
     message: "Select an MCP Server to configure:",
     options: Object.entries(MCP_TEMPLATES).map(([key, item]) => ({
@@ -80,7 +76,6 @@ export async function runMcpAdd(): Promise<void> {
   const template = MCP_TEMPLATES[selectedKey];
   const finalArgs = [...template.args];
 
-  // 3. Customize parameters based on selection
   if (selectedKey === "sqlite") {
     const dbPath = await p.text({
       message: "Specify SQLite database path relative to project root:",
@@ -89,7 +84,6 @@ export async function runMcpAdd(): Promise<void> {
     });
     if (p.isCancel(dbPath)) return;
     
-    // Replace '--db' arg value
     const dbIndex = finalArgs.indexOf("--db");
     if (dbIndex !== -1 && dbIndex + 1 < finalArgs.length) {
       finalArgs[dbIndex + 1] = dbPath as string;
@@ -107,14 +101,11 @@ export async function runMcpAdd(): Promise<void> {
     finalArgs.push(allowedPath as string);
   }
 
-  // 4. Update configuration file
   const s = p.spinner();
   s.start(`Adding ${selectedKey} server to config...`);
 
   try {
     let content = fs.readFileSync(configPath, "utf-8");
-    
-    // Basic JSONC clean to prevent parse crash on comments (simple stripping)
     let parsed: any = {};
     try {
       const cleanJson = content.replace(/\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm, '$1');
@@ -142,4 +133,92 @@ export async function runMcpAdd(): Promise<void> {
     s.stop("Failed.");
     p.cancel(error instanceof Error ? error.message : String(error));
   }
+}
+
+export async function runMcpCheck(): Promise<void> {
+  p.intro(pc.cyan("🔌 OpenCode MCP Servers Diagnostics"));
+
+  let configPath = path.join(process.cwd(), "opencode.json");
+  if (!fs.existsSync(configPath)) {
+    if (fs.existsSync(path.join(process.cwd(), "opencode.jsonc"))) {
+      configPath = path.join(process.cwd(), "opencode.jsonc");
+    } else {
+      p.cancel(pc.yellow("No local 'opencode.json' or 'opencode.jsonc' configuration found."));
+      return;
+    }
+  }
+
+  let content = fs.readFileSync(configPath, "utf-8");
+  let parsed: any = {};
+  try {
+    const cleanJson = content.replace(/\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm, '$1');
+    parsed = JSON.parse(cleanJson);
+  } catch {
+    p.cancel(pc.red(`Failed to parse ${path.basename(configPath)}. Ensure it is valid JSON/JSONC.`));
+    return;
+  }
+
+  const servers = parsed.mcp?.servers;
+  if (!servers || Object.keys(servers).length === 0) {
+    p.log.warn("No MCP servers are configured in this project.");
+    p.outro("Add a server using 'ia-tool mcp' first.");
+    return;
+  }
+
+  const s = p.spinner();
+  s.start("Auditing configured MCP servers...");
+  await new Promise(resolve => setTimeout(resolve, 500));
+  s.stop("Audit completed.");
+
+  for (const [name, config] of Object.entries(servers)) {
+    const mcpConfig = config as MCPServerConfig;
+    const cmd = mcpConfig.command;
+    
+    // 1. Verify executable exists in path
+    let commandExists = false;
+    try {
+      execSync(`command -v ${cmd}`, { stdio: "ignore" });
+      commandExists = true;
+    } catch {}
+
+    if (!commandExists) {
+      p.log.error(`[Red] Server '${name}': Command '${cmd}' not found in PATH.`);
+      continue;
+    }
+
+    // 2. Perform a brief spawn check
+    let spawnSuccess = true;
+    let spawnError = "";
+    try {
+      // Spawn briefly and kill after 800ms to verify it starts up without throwing
+      const proc = Bun.spawn([cmd, ...mcpConfig.args], {
+        stdout: "ignore",
+        stderr: "pipe",
+      });
+
+      // Brief delay
+      await new Promise(resolve => setTimeout(resolve, 800));
+
+      // Check if it exited prematurely with error
+      if (proc.killed || (proc.exitCode !== null && proc.exitCode !== 0)) {
+        spawnSuccess = false;
+        const errOutput = await new Response(proc.stderr).text();
+        spawnError = errOutput.trim() || `process exited with code ${proc.exitCode}`;
+      }
+      
+      // Kill the process cleanly
+      proc.kill();
+    } catch (e) {
+      spawnSuccess = false;
+      spawnError = e instanceof Error ? e.message : String(e);
+    }
+
+    if (spawnSuccess) {
+      p.log.success(`Server '${name}': Configured correctly and runs successfully.`);
+    } else {
+      p.log.error(`Server '${name}': Failed to run. Details: ${spawnError}`);
+    }
+  }
+
+  p.outro(pc.green("✔ MCP diagnostics finished."));
 }
