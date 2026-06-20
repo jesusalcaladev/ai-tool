@@ -33,24 +33,8 @@ Dynamically audits your current workspace environment and installs premium, **to
     *   **GitHub Copilot**: Writes to `.github/copilot-instructions.md`.
     *   **Gemini Antigravity**: Writes to `.agents/AGENTS.md`.
 
-*   **Available Agents**:
-    *   `refactor`: SOLID improvements and code cleanups.
-    *   `reviewer`: Actionable read-only code review with blocker/critical/nit severity metrics.
-    *   `security`: General language-agnostic OWASP top-10 security audit.
-    *   `architect`: API contracts, component boundaries, and structural coupling.
-    *   `database`: Schema migration plans, deadlock prevention, and query tuning.
-    *   `tester`: Unit, integration, and E2E coverage.
-    *   `seo`: HTML5 markup semantics, og:tags, and structured JSON-LD data.
-    *   `performance`: Bundle splitting, re-render avoidance, and event loop blocks.
-    *   `benchmark`: Test script generators (Tinybench, Mitata) with warmups.
-
-*   **Custom slash commands (OpenCode)**:
-    *   `/commit-all`: Automatically stages changes and creates conventional commits.
-    *   `/changeset`: Suggests release packages and bump details.
-    *   `/test`: Runs tests, isolates failures, and recommends coverage fixes.
-    *   `/doc`: Auto-documents modules with JSDoc/TSDoc specifications.
-    *   `/explain`: Explains file execution flows and global side-effects.
-    *   `/debug`: Analyzes error logs, diagnoses roots, and generates quick fixing diffs.
+*   **Remote Configuration Download**:
+    *   You can run `bunx ia-tool install <url>` to download and install a custom agent or command markdown configuration file directly from a remote URL (such as a GitHub Gist or raw file path).
 
 ### 3. Conventional Commit Assistant (`ia-tool commit-all`)
 An interactive helper that strictly adheres to the **Conventional Commits v1.0.0** specification.
@@ -64,6 +48,24 @@ Automates npm release preparation for single packages or monorepos (PNPM / Yarn 
 *   Pinpoints exactly which package directories have modified files.
 *   Guides selection of major/minor/patch bump types.
 *   Generates a standardized `.changeset/random-slug.md` file containing version settings and your release notes description.
+
+### 5. Diagnostics Audit (`ia-tool doctor`)
+*   Checks paths and tool configurations. Verifies if OpenCode is in the system PATH, checks for local config folders (`.opencode/`), and audits git setups.
+
+### 6. Command Builder (`ia-tool command`)
+*   An interactive prompt wizard that builds custom OpenCode slash commands and saves them directly to `.opencode/commands/[name].md`.
+
+### 7. MCP Server Configurator (`ia-tool mcp` / `ia-tool mcp check`)
+*   **mcp**: Interactively configure SQLite, Filesystem, Fetch, or Memory MCP servers in your `opencode.json`.
+*   **mcp check** / **mcp status**: Diagnoses your configured MCP servers. Checks if the command executables exist in system `PATH` and spawns the processes briefly to confirm they run successfully.
+
+### 8. Git Hook Installer (`ia-tool hook`)
+*   Installs Git hooks:
+    *   `prepare-commit-msg` to trigger `ia-tool commit-all` on standard git commit.
+    *   `pre-commit` to automatically run code verification (formatting/linting scripts like `npm run format` or `bun run format`) on staged files, aborting commits on failures.
+
+### 9. Synchronizer (`ia-tool sync`)
+*   Syncs all custom agents and commands between project-local configuration (`.opencode/`) and global directories (`~/.config/opencode/`).
 
 ---
 
