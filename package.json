@@ -3,6 +3,13 @@
   "version": "1.0.0",
   "description": "CLI tool to install AI agent configurations and commands, perform semantic commits, and generate changesets.",
   "type": "module",
+  "files": [
+    "dist",
+    "agents",
+    "commands",
+    "README.md",
+    "LICENSE"
+  ],
   "main": "src/index.ts",
   "bin": {
     "ia-tool": "./src/index.ts"
