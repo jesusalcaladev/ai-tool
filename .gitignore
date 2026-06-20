@@ -1,0 +1,21 @@
+# Dependency directories
+node_modules/
+
+# Bun lockfile and typescript artifacts
+*.lockb
+*.tsbuildinfo
+
+# Build outputs
+dist/
+build/
+
+# Local env files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# OS system files
+.DS_Store
+Thumbs.db

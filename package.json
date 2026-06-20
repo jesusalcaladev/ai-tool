@@ -1,0 +1,22 @@
+{
+  "name": "ia-tool",
+  "version": "1.0.0",
+  "description": "CLI tool to install AI agent configurations and commands, perform semantic commits, and generate changesets.",
+  "type": "module",
+  "main": "src/index.ts",
+  "bin": {
+    "ia-tool": "./src/index.ts"
+  },
+  "scripts": {
+    "start": "bun run src/index.ts",
+    "build": "bun build ./src/index.ts --outdir ./dist --target node"
+  },
+  "dependencies": {
+    "@clack/prompts": "^0.7.0",
+    "picocolors": "^1.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.24",
+    "typescript": "^5.3.3"
+  }
+}
