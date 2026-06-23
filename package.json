@@ -1,7 +1,7 @@
 {
   "name": "@j3sus.dev/ia-tool",
-  "version": "1.1.1",
-  "description": "CLI tool to install AI agent configurations and commands, perform semantic commits, and generate changesets.",
+  "version": "2.0.0",
+  "description": "CLI tool to install AI agent configurations and commands for OpenCode, Claude Code, Cursor, and more.",
   "type": "module",
   "files": [
     "dist",
@@ -16,12 +16,11 @@
   },
   "scripts": {
     "start": "bun run src/index.ts",
-    "build": "bun build ./src/index.ts --outdir ./dist --target node"
+    "build": "bun build ./src/index.ts --outdir ./dist --target node",
+    "test": "bun test"
   },
   "dependencies": {
-    "@bdocs/dui": "^0.2.0",
-    "@clack/prompts": "^0.7.0",
-    "picocolors": "^1.0.1"
+    "@bdocs/dui": "^0.2.0"
   },
   "devDependencies": {
     "@types/node": "^20.11.24",

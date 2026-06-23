@@ -1,22 +1,33 @@
 import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import * as p from "@clack/prompts";
-import pc from "picocolors";
-import { steps, colors, box } from "@bdocs/dui";
-import { isGitRepo } from "../utils/git.ts";
+import { colors, steps, createSpinner, divider } from "@bdocs/dui";
+
+function isGitRepo(): boolean {
+  try {
+    execSync("git rev-parse --is-inside-work-tree", { stdio: "ignore" });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+interface Check {
+  label: string;
+  status: "success" | "error" | "pending";
+  detail?: string;
+}
 
 export async function runDoctor(): Promise<void> {
-  p.intro(pc.cyan("🔍 IA-TOOL Doctor Diagnostics"));
+  console.log(`\n${colors.bold(colors.cyan("🔍 IA-TOOL Doctor Diagnostics"))}\n`);
 
-  const s = p.spinner();
-  s.start("Auditing development environment...");
+  const spinner = createSpinner("Auditing development environment...");
+  spinner.start();
+
   await new Promise((resolve) => setTimeout(resolve, 500));
-  s.stop("Audit completed.");
 
-  const checks: Array<{ label: string; status: "success" | "error" | "pending"; detail?: string }> = [];
+  const checks: Check[] = [];
 
-  // 1. Check Git
   if (isGitRepo()) {
     checks.push({ label: "Git Repository", status: "success" });
   } else {
@@ -27,7 +38,6 @@ export async function runDoctor(): Promise<void> {
     });
   }
 
-  // 2. Check OpenCode CLI
   let opencodeInstalled = false;
   try {
     execSync("which opencode", { stdio: "ignore" });
@@ -39,53 +49,73 @@ export async function runDoctor(): Promise<void> {
   } else {
     checks.push({
       label: "OpenCode CLI",
-      status: "error",
-      detail: "Not detected in PATH. Install it globally.",
+      status: "pending",
+      detail: "Not detected in PATH. Install globally with: npm i -g opencode",
     });
   }
 
-  // 3. Check Configurations
   const localOpencode = path.join(process.cwd(), ".opencode");
   checks.push({
     label: "OpenCode Config (.opencode/)",
     status: fs.existsSync(localOpencode) ? "success" : "pending",
+    detail: fs.existsSync(localOpencode) ? undefined : "Run 'ia-tool init' to install",
   });
 
-  const cursorrules = path.join(process.cwd(), ".cursorrules");
+  const opencodeAgents = path.join(process.cwd(), ".opencode", "agents");
+  const agentCount = fs.existsSync(opencodeAgents)
+    ? fs.readdirSync(opencodeAgents).filter((f) => f.endsWith(".md")).length
+    : 0;
   checks.push({
-    label: "Cursor Config (.cursorrules)",
-    status: fs.existsSync(cursorrules) ? "success" : "pending",
+    label: "OpenCode Agents",
+    status: agentCount > 0 ? "success" : "pending",
+    detail: agentCount > 0 ? `${agentCount} agents installed` : "No agents installed",
+  });
+
+  const opencodeCommands = path.join(process.cwd(), ".opencode", "commands");
+  const cmdCount = fs.existsSync(opencodeCommands)
+    ? fs.readdirSync(opencodeCommands).filter((f) => f.endsWith(".md")).length
+    : 0;
+  checks.push({
+    label: "OpenCode Commands",
+    status: cmdCount > 0 ? "success" : "pending",
+    detail: cmdCount > 0 ? `${cmdCount} commands installed` : "No commands installed",
   });
 
   const claudeMd = path.join(process.cwd(), "CLAUDE.md");
   const localClaude = path.join(process.cwd(), ".claude", "CLAUDE.md");
   checks.push({
-    label: "Claude Code Config (CLAUDE.md)",
+    label: "Claude Code Config",
     status: fs.existsSync(claudeMd) || fs.existsSync(localClaude) ? "success" : "pending",
+    detail:
+      fs.existsSync(claudeMd) || fs.existsSync(localClaude)
+        ? undefined
+        : "Run 'ia-tool init' and select Claude Code",
+  });
+
+  const cursorrules = path.join(process.cwd(), ".cursorrules");
+  checks.push({
+    label: "Cursor Config",
+    status: fs.existsSync(cursorrules) ? "success" : "pending",
+    detail: fs.existsSync(cursorrules) ? undefined : "Run 'ia-tool init' and select Cursor",
   });
 
   const antigravity = path.join(process.cwd(), ".agents", "AGENTS.md");
   checks.push({
     label: "Gemini Antigravity Config",
     status: fs.existsSync(antigravity) ? "success" : "pending",
+    detail: fs.existsSync(antigravity) ? undefined : "Run 'ia-tool init' and select Antigravity",
   });
 
-  // 4. Check Commit Hooks
-  const commitHook = path.join(process.cwd(), ".git", "hooks", "prepare-commit-msg");
-  if (fs.existsSync(commitHook)) {
-    const content = fs.readFileSync(commitHook, "utf-8");
-    checks.push({
-      label: "Git Commit Hook",
-      status: content.includes("ia-tool commit-all") ? "success" : "pending",
-    });
-  } else {
-    checks.push({
-      label: "Git Commit Hook",
-      status: "pending",
-    });
-  }
+  const copilot = path.join(process.cwd(), ".github", "copilot-instructions.md");
+  checks.push({
+    label: "GitHub Copilot Config",
+    status: fs.existsSync(copilot) ? "success" : "pending",
+    detail: fs.existsSync(copilot) ? undefined : "Run 'ia-tool init' and select Copilot",
+  });
 
-  // Render all checks as steps
+  spinner.stop("success", "Audit completed!");
+
+  console.log("");
   console.log(
     steps(
       checks.map((c) => ({
@@ -96,11 +126,20 @@ export async function runDoctor(): Promise<void> {
     )
   );
 
-  const issuesCount = checks.filter((c) => c.status === "error").length;
+  const errors = checks.filter((c) => c.status === "error").length;
+  const warnings = checks.filter((c) => c.status === "pending").length;
 
-  p.outro(
-    issuesCount === 0
-      ? pc.green("✔ Everything looks great! Your environment is healthy.")
-      : pc.yellow(`⚠ Diagnostics completed with ${issuesCount} warnings. Check above for recommendations.`)
-  );
+  console.log(divider("-", 50, { color: "#444" }));
+
+  if (errors === 0 && warnings === 0) {
+    console.log(`\n${colors.green("✔")} ${colors.bold("Everything looks great!")}\n`);
+  } else if (errors === 0) {
+    console.log(
+      `\n${colors.yellow("⚠")} ${colors.bold(`${warnings} suggestions`)} available. Run ${colors.cyan("ia-tool init")} to install missing configs.\n`
+    );
+  } else {
+    console.log(
+      `\n${colors.red("✖")} ${colors.bold(`${errors} errors`)} and ${colors.yellow(`${warnings} suggestions`)} found.\n`
+    );
+  }
 }

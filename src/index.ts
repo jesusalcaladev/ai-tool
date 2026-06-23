@@ -1,19 +1,12 @@
 #!/usr/bin/env bun
-import * as p from "@clack/prompts";
-import pc from "picocolors";
-import { configure, colors, divider } from "@bdocs/dui";
+import { select, colors, divider } from "@bdocs/dui";
 import { renderAsciiLogo, renderDivider } from "./utils/ascii.ts";
+import { configure } from "@bdocs/dui";
 
 configure({ prefix: "ia-tool" });
 
 import { runInstall } from "./commands/install.ts";
-import { runCommitAll } from "./commands/commit-all.ts";
-import { runChangeset } from "./commands/changeset.ts";
 import { runDoctor } from "./commands/doctor.ts";
-import { runCommandAdd } from "./commands/command-add.ts";
-import { runMcpAdd, runMcpCheck } from "./commands/mcp.ts";
-import { runHookInstall } from "./commands/hook.ts";
-import { runSync } from "./commands/sync.ts";
 
 function getVersion(): string {
   try {
@@ -27,18 +20,16 @@ function getVersion(): string {
   }
 }
 
-function renderMenuHeader(): void {
-  console.log("");
-  console.log(colors.bold(colors.magenta("  Select an option:")));
-  console.log("");
-}
-
-function renderMenuFooter(): void {
+function renderHelp(): void {
   const version = getVersion();
-  console.log("");
-  console.log(divider("-", 50, { color: "#444" }));
-  console.log(colors.dim(`  @j3sus.dev/ia-tool v${version}`));
-  console.log(colors.dim("  Press Ctrl+C to exit"));
+  console.log(`\n${colors.bold(colors.cyan("Usage:"))}\n`);
+  console.log(`  ${colors.green("bunx @j3sus.dev/ia-tool")}          ${colors.dim("Run interactively")}`);
+  console.log(`  ${colors.green("bunx @j3sus.dev/ia-tool init")}     ${colors.dim("Install AI configurations")}`);
+  console.log(`  ${colors.green("bunx @j3sus.dev/ia-tool doctor")}   ${colors.dim("Check environment health")}`);
+  console.log(`  ${colors.green("bunx @j3sus.dev/ia-tool --help")}   ${colors.dim("Show this help")}`);
+  console.log(`\n${colors.bold(colors.cyan("Options:"))}\n`);
+  console.log(`  ${colors.yellow("-h, --help")}    ${colors.dim("Show help details")}`);
+  console.log(`  ${colors.yellow("-v, --version")} ${colors.dim("Show version")}`);
   console.log("");
 }
 
@@ -46,155 +37,67 @@ async function main() {
   const args = process.argv.slice(2);
   const command = args[0];
 
-  if (command) {
-    switch (command.toLowerCase()) {
-      case "install":
-      case "init":
-        await runInstall(args[1]);
-        break;
-      case "commit-all":
-        await runCommitAll();
-        break;
-      case "changeset":
-        await runChangeset();
-        break;
-      case "doctor":
-        await runDoctor();
-        break;
-      case "command":
-        await runCommandAdd();
-        break;
-      case "mcp":
-        if (args[1] === "check" || args[1] === "status") {
-          await runMcpCheck();
-        } else {
-          await runMcpAdd();
-        }
-        break;
-      case "hook":
-        await runHookInstall();
-        break;
-      case "sync":
-        await runSync();
-        break;
-      case "--help":
-      case "-h":
-        await renderAsciiLogo();
-        console.log(colors.bold(colors.cyan("  Usage:")));
-        console.log("");
-        console.log(`    ${colors.green("bunx @j3sus.dev/ia-tool")}               ${colors.dim("Run interactively (recommended)")}`);
-        console.log(`    ${colors.green("bunx @j3sus.dev/ia-tool install")}       ${colors.dim("Install AI agent & command configurations")}`);
-        console.log(`    ${colors.green("bunx @j3sus.dev/ia-tool install <url>")} ${colors.dim("Install remote markdown configuration")}`);
-        console.log(`    ${colors.green("bunx @j3sus.dev/ia-tool commit-all")}    ${colors.dim("Automatically stage and semantic commit")}`);
-        console.log(`    ${colors.green("bunx @j3sus.dev/ia-tool changeset")}     ${colors.dim("Create a package release changeset")}`);
-        console.log(`    ${colors.green("bunx @j3sus.dev/ia-tool doctor")}        ${colors.dim("Verify environment setups")}`);
-        console.log(`    ${colors.green("bunx @j3sus.dev/ia-tool command")}       ${colors.dim("Create a custom OpenCode slash command")}`);
-        console.log(`    ${colors.green("bunx @j3sus.dev/ia-tool mcp")}           ${colors.dim("Configure MCP servers in opencode.json")}`);
-        console.log(`    ${colors.green("bunx @j3sus.dev/ia-tool mcp check")}     ${colors.dim("Audit and run diagnostics on MCP servers")}`);
-        console.log(`    ${colors.green("bunx @j3sus.dev/ia-tool hook")}          ${colors.dim("Install Git commit assistant hook")}`);
-        console.log(`    ${colors.green("bunx @j3sus.dev/ia-tool sync")}          ${colors.dim("Synchronize local & global config files")}`);
-        console.log("");
-        console.log(colors.bold(colors.cyan("  Options:")));
-        console.log("");
-        console.log(`    ${colors.yellow("-h, --help")}                 ${colors.dim("Show help details")}`);
-        console.log("");
-        break;
-      default:
-        console.log("");
-        console.log(colors.bold(colors.red(`  Unknown command: ${command}`)));
-        console.log(colors.dim(`  Run ${colors.cyan("ia-tool --help")} for usage details.`));
-        console.log("");
-        process.exit(1);
-    }
+  if (command === "--help" || command === "-h") {
+    await renderAsciiLogo();
+    renderHelp();
     process.exit(0);
+  }
+
+  if (command === "--version" || command === "-v") {
+    console.log(getVersion());
+    process.exit(0);
+  }
+
+  if (command === "init" || command === "install") {
+    await runInstall(args[1]);
+    process.exit(0);
+  }
+
+  if (command === "doctor") {
+    await runDoctor();
+    process.exit(0);
+  }
+
+  if (command) {
+    console.log(`\n${colors.red("✖")} Unknown command: ${colors.cyan(command)}`);
+    console.log(colors.dim(`  Run ${colors.cyan("ia-tool --help")} for usage details.\n`));
+    process.exit(1);
   }
 
   await renderAsciiLogo();
 
-  renderMenuHeader();
-
-  const action = await p.select({
-    message: "What would you like to do?",
-    options: [
-      { value: "install", label: `${colors.cyan("🔧")} Install AI Agent & Command Configurations` },
-      { value: "install-url", label: `${colors.blue("📥")} Install Remote Config from URL` },
-      { value: "commit-all", label: `${colors.green("🚀")} Semantic Commit Assistant ${colors.dim("(commit-all)")}` },
-      { value: "changeset", label: `${colors.magenta("📦")} Create Package Release Changeset` },
-      { value: "doctor", label: `${colors.yellow("🔍")} Validate Environment ${colors.dim("(doctor)")}` },
-      { value: "command", label: `${colors.cyan("🛠")}  Create OpenCode Custom Command` },
-      { value: "mcp", label: `${colors.green("🔌")} Configure OpenCode MCP Servers` },
-      { value: "mcp-check", label: `${colors.blue("📋")} Audit Configured MCP Servers ${colors.dim("(check)")}` },
-      { value: "hook", label: `${colors.red("⚓")} Install Git Commit Hook` },
-      { value: "sync", label: `${colors.yellow("🔄")} Synchronize Local-Global Configs` },
-      { value: "exit", label: `${colors.red("❌")} Exit` },
+  const action = await select("What would you like to do?", {
+    choices: [
+      { label: `${colors.cyan("🔧")} Install AI Configurations ${colors.dim("(init)")}`, value: "init" },
+      { label: `${colors.green("🔍")} Check Environment Health ${colors.dim("(doctor)")}`, value: "doctor" },
+      { label: `${colors.yellow("📖")} Show Help`, value: "help" },
+      { label: `${colors.red("❌")} Exit`, value: "exit" },
     ],
-    colors: {
-      pointer: "#a855f7",
-      selected: "#a855f7",
-      label: "#fff",
-      message: "#f472b6",
-    },
   });
 
-  if (p.isCancel(action) || action === "exit") {
-    console.log("");
-    console.log(colors.dim("  Goodbye! 👋"));
-    console.log("");
+  if (action === "exit") {
+    console.log(`\n${colors.dim("  Goodbye!")}\n`);
+    process.exit(0);
+  }
+
+  if (action === "help") {
+    renderHelp();
     process.exit(0);
   }
 
   renderDivider();
 
   switch (action) {
-    case "install":
+    case "init":
       await runInstall();
-      break;
-    case "install-url":
-      const url = await p.text({
-        message: "Enter the remote configuration file URL:",
-        placeholder: "https://gist.githubusercontent.com/...",
-        validate(value) {
-          if (!value.trim()) return "URL is required.";
-          if (!value.startsWith("http://") && !value.startsWith("https://")) return "Invalid URL scheme.";
-        },
-      });
-      if (!p.isCancel(url)) {
-        await runInstall(url as string);
-      }
-      break;
-    case "commit-all":
-      await runCommitAll();
-      break;
-    case "changeset":
-      await runChangeset();
       break;
     case "doctor":
       await runDoctor();
       break;
-    case "command":
-      await runCommandAdd();
-      break;
-    case "mcp":
-      await runMcpAdd();
-      break;
-    case "mcp-check":
-      await runMcpCheck();
-      break;
-    case "hook":
-      await runHookInstall();
-      break;
-    case "sync":
-      await runSync();
-      break;
   }
-
-  renderMenuFooter();
 }
 
 main().catch((err) => {
-  console.log("");
-  console.log(colors.bold(colors.red("  An unexpected error occurred:")));
-  console.log(colors.red(`  ${err.message || err}`));
-  console.log("");
+  console.log(`\n${colors.bold(colors.red("  Error:"))} ${colors.red(err.message || err)}\n`);
   process.exit(1);
 });
