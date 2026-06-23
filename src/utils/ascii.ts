@@ -1,4 +1,4 @@
-import { colors, colorize, stripAnsi, visibleLength, terminalWidth, box, divider, configure } from "@bdocs/dui";
+import { colors, colorize, divider } from "@bdocs/dui";
 
 const logoLines = [
   "  ___   _       _____ ___   ___  _     ",
@@ -51,33 +51,16 @@ export async function renderAsciiLogo(): Promise<void> {
   const version = getVersion();
 
   console.log("");
-
-  const bannerContent = [
-    "",
-    colors.bold(colors.magenta("IA-TOOL CLI")),
-    colors.dim(`v${version}`),
-    "",
-    colors.cyan("AI Configs & Smart Git Tools"),
-    "",
-  ];
-
-  console.log(box(bannerContent, {
-    style: "round",
-    padding: { left: 2, right: 2 },
-    colors: {
-      border: "#a855f7",
-      title: { fg: "#fff", bg: "#a855f7" },
-    },
-  }));
-
+  console.log(`  ${colors.bold(colors.magenta("IA-TOOL CLI"))} ${colors.dim(`v${version}`)}`);
+  console.log(`  ${colors.cyan("AI Configs & Smart Git Tools")}`);
   console.log("");
 }
 
 export function renderDivider(): void {
-  console.log(divider("─", 50, { color: "#666" }));
+  console.log(divider("-", 50, { color: "#666" }));
 }
 
 export function renderSectionHeader(title: string, emoji: string): void {
   console.log(`\n${colors.bold(colors.cyan(`${emoji} ${title}`))}`);
-  console.log(divider("─", 40, { color: "#444" }));
+  console.log(divider("-", 40, { color: "#444" }));
 }

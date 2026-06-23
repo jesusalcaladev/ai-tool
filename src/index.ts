@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import * as p from "@clack/prompts";
 import pc from "picocolors";
-import { configure, colors, box, divider } from "@bdocs/dui";
+import { configure, colors, divider } from "@bdocs/dui";
 import { renderAsciiLogo, renderDivider } from "./utils/ascii.ts";
 
 configure({ prefix: "ia-tool" });
@@ -36,7 +36,7 @@ function renderMenuHeader(): void {
 function renderMenuFooter(): void {
   const version = getVersion();
   console.log("");
-  console.log(divider("─", 50, { color: "#444" }));
+  console.log(divider("-", 50, { color: "#444" }));
   console.log(colors.dim(`  @j3sus.dev/ia-tool v${version}`));
   console.log(colors.dim("  Press Ctrl+C to exit"));
   console.log("");
