@@ -1,6 +1,6 @@
 {
   "name": "@j3sus.dev/ia-tool",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "CLI tool to install AI agent configurations and commands, perform semantic commits, and generate changesets.",
   "type": "module",
   "files": [
