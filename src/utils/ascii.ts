@@ -1,4 +1,4 @@
-import { colors, colorize, stripAnsi, visibleLength, terminalWidth } from "@bdocs/dui";
+import { colors, colorize, stripAnsi, visibleLength, terminalWidth, box, divider, configure } from "@bdocs/dui";
 
 const logoLines = [
   "  ___   _       _____ ___   ___  _     ",
@@ -8,35 +8,76 @@ const logoLines = [
   " |___/_/   \\_\\    |_| \\___/ \\___/|_____|",
 ];
 
-const colorGradient = ["#d946ef", "#a855f7", "#3b82f6", "#06b6d4", "#06b6d4"];
+const colorGradient = ["#f472b6", "#c084fc", "#818cf8", "#38bdf8", "#22d3ee"];
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function typeLine(line: string, color: string, charDelay = 8): Promise<void> {
-  const colored = colorize(line, color);
+async function typeLine(line: string, color: string, charDelay = 6): Promise<void> {
   const chars = [...line];
   let output = "";
 
-  for (const char of chars) {
+  for (let i = 0; i < chars.length; i++) {
+    const char = chars[i];
     output += char;
-    const visible = stripAnsi(output);
-    process.stdout.write(`\r${output}`);
+    const coloredOutput = colorize(output, color);
+    process.stdout.write(`\r${coloredOutput}`);
     await sleep(charDelay);
   }
   process.stdout.write("\n");
+}
+
+function getVersion(): string {
+  try {
+    const fs = require("node:fs");
+    const path = require("node:path");
+    const pkgPath = path.join(process.cwd(), "package.json");
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
+    return pkg.version || "0.0.0";
+  } catch {
+    return "0.0.0";
+  }
 }
 
 export async function renderAsciiLogo(): Promise<void> {
   console.log("");
 
   for (let i = 0; i < logoLines.length; i++) {
-    await typeLine(logoLines[i], colorGradient[i], 6);
-    await sleep(40);
+    await typeLine(logoLines[i], colorGradient[i], 5);
+    await sleep(30);
   }
 
-  console.log(
-    colors.dim(`\n  ⚡ IA-TOOL CLI v1.0.0 — AI Configs & Smart Git Tools\n`)
-  );
+  const version = getVersion();
+
+  console.log("");
+
+  const bannerContent = [
+    "",
+    colors.bold(colors.magenta("IA-TOOL CLI")),
+    colors.dim(`v${version}`),
+    "",
+    colors.cyan("AI Configs & Smart Git Tools"),
+    "",
+  ];
+
+  console.log(box(bannerContent, {
+    style: "round",
+    padding: { left: 2, right: 2 },
+    colors: {
+      border: "#a855f7",
+      title: { fg: "#fff", bg: "#a855f7" },
+    },
+  }));
+
+  console.log("");
+}
+
+export function renderDivider(): void {
+  console.log(divider("─", 50, { color: "#666" }));
+}
+
+export function renderSectionHeader(title: string, emoji: string): void {
+  console.log(`\n${colors.bold(colors.cyan(`${emoji} ${title}`))}`);
+  console.log(divider("─", 40, { color: "#444" }));
 }
