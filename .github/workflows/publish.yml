@@ -43,11 +43,13 @@ jobs:
             echo "already_published=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Configure npm auth
+        if: steps.version-check.outputs.already_published == 'false'
+        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
+
       - name: Publish to npm
         if: steps.version-check.outputs.already_published == 'false'
         run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Skip (version already published)
         if: steps.version-check.outputs.already_published == 'true'
