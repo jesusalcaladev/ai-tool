@@ -1,7 +1,10 @@
 #!/usr/bin/env bun
 import * as p from "@clack/prompts";
 import pc from "picocolors";
+import { configure } from "@bdocs/dui";
 import { renderAsciiLogo } from "./utils/ascii.ts";
+
+configure({ prefix: "ia-tool" });
 import { runInstall } from "./commands/install.ts";
 import { runCommitAll } from "./commands/commit-all.ts";
 import { runChangeset } from "./commands/changeset.ts";
@@ -48,7 +51,7 @@ async function main() {
         break;
       case "--help":
       case "-h":
-        renderAsciiLogo();
+        await renderAsciiLogo();
         console.log("Usage:");
         console.log("  bunx ia-tool               Run interactively (recommended)");
         console.log("  bunx ia-tool install       Install AI agent & command configurations");
@@ -73,7 +76,7 @@ async function main() {
   }
 
   // Interactive flow when running without args (npx ia-tool)
-  renderAsciiLogo();
+  await renderAsciiLogo();
 
   const action = await p.select({
     message: "What would you like to do?",

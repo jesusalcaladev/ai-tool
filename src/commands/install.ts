@@ -3,6 +3,7 @@ import path from "node:path";
 import os from "node:os";
 import * as p from "@clack/prompts";
 import pc from "picocolors";
+import { box, steps, colors, createSpinner } from "@bdocs/dui";
 
 function findPackageRoot(startDir: string): string {
   let dir = startDir;
@@ -168,6 +169,18 @@ export async function runInstall(remoteUrl?: string): Promise<void> {
     }
     selectedCommands = cmdChoices as string[];
   }
+
+  // Show installation summary
+  console.log(
+    box(
+      [
+        `Tools: ${tools.join(", ")}`,
+        `Agents: ${selectedAgents.length} selected`,
+        `Commands: ${selectedCommands.length} selected`,
+      ],
+      { title: "Installation Summary", style: "round", color: "#8b5cf6" }
+    )
+  );
 
   const sInstall = p.spinner();
   sInstall.start("Installing configurations...");

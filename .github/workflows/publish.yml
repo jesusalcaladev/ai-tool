@@ -1,0 +1,54 @@
+name: Publish to npm
+
+on:
+  push:
+    branches: [master]
+  release:
+    types: [published]
+
+jobs:
+  publish:
+    name: Build & Publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install Dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build
+        run: bun run build
+
+      - name: Check if version already exists on npm
+        id: version-check
+        run: |
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          echo "current_version=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
+
+          PUBLISHED_VERSION=$(npm view ia-tool version 2>/dev/null || echo "")
+          echo "published_version=$PUBLISHED_VERSION" >> "$GITHUB_OUTPUT"
+
+          if [ "$CURRENT_VERSION" = "$PUBLISHED_VERSION" ]; then
+            echo "already_published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "already_published=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish to npm
+        if: steps.version-check.outputs.already_published == 'false'
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Skip (version already published)
+        if: steps.version-check.outputs.already_published == 'true'
+        run: echo "Version ${{ steps.version-check.outputs.current_version }} already exists on npm. Skipping publish."

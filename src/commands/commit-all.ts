@@ -1,5 +1,6 @@
 import * as p from "@clack/prompts";
 import pc from "picocolors";
+import { box, colors } from "@bdocs/dui";
 import {
   isGitRepo,
   hasUnstagedChanges,
@@ -137,10 +138,14 @@ export async function runCommitAll(): Promise<void> {
     commitMessage += `\n\nBREAKING CHANGE: ${breakingExplanation}`;
   }
 
-  console.log(pc.bold("\nProposed Conventional Commit Message:"));
-  console.log(pc.gray("--------------------------------------------------"));
-  console.log(pc.green(commitMessage));
-  console.log(pc.gray("--------------------------------------------------\n"));
+  // Show commit preview in a styled box
+  console.log(
+    box([colors.green(commitMessage)], {
+      title: "Proposed Commit",
+      style: "double",
+      color: "#22c55e",
+    })
+  );
 
   const options = [
     { value: "commit", label: "✔ Commit with this message" },

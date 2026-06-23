@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import * as p from "@clack/prompts";
 import pc from "picocolors";
+import { steps, colors, box } from "@bdocs/dui";
 import { isGitRepo } from "../utils/git.ts";
 
 export async function runDoctor(): Promise<void> {
@@ -10,17 +11,20 @@ export async function runDoctor(): Promise<void> {
 
   const s = p.spinner();
   s.start("Auditing development environment...");
-  await new Promise(resolve => setTimeout(resolve, 500)); // Brief pause for nice UX
+  await new Promise((resolve) => setTimeout(resolve, 500));
   s.stop("Audit completed.");
 
-  let issuesCount = 0;
+  const checks: Array<{ label: string; status: "success" | "error" | "pending"; detail?: string }> = [];
 
   // 1. Check Git
   if (isGitRepo()) {
-    p.log.success("Git: Repository is initialized.");
+    checks.push({ label: "Git Repository", status: "success" });
   } else {
-    p.log.warn("Git: Current folder is not a Git repository. Run 'git init' to enable version tracking.");
-    issuesCount++;
+    checks.push({
+      label: "Git Repository",
+      status: "error",
+      detail: "Not a Git repo. Run 'git init' to enable version tracking.",
+    });
   }
 
   // 2. Check OpenCode CLI
@@ -31,48 +35,68 @@ export async function runDoctor(): Promise<void> {
   } catch {}
 
   if (opencodeInstalled) {
-    p.log.success("OpenCode: CLI is installed and available.");
+    checks.push({ label: "OpenCode CLI", status: "success" });
   } else {
-    p.log.warn("OpenCode: CLI not detected in system PATH. Install it globally via your package manager to use it.");
-    issuesCount++;
+    checks.push({
+      label: "OpenCode CLI",
+      status: "error",
+      detail: "Not detected in PATH. Install it globally.",
+    });
   }
 
   // 3. Check Configurations
   const localOpencode = path.join(process.cwd(), ".opencode");
-  if (fs.existsSync(localOpencode)) {
-    p.log.success("OpenCode Config: Local folder '.opencode' detected.");
-  } else {
-    p.log.info("OpenCode Config: No local folder '.opencode' found. Run 'ia-tool install' to set it up.");
-  }
+  checks.push({
+    label: "OpenCode Config (.opencode/)",
+    status: fs.existsSync(localOpencode) ? "success" : "pending",
+  });
 
   const cursorrules = path.join(process.cwd(), ".cursorrules");
-  if (fs.existsSync(cursorrules)) {
-    p.log.success("Cursor Config: '.cursorrules' file detected.");
-  }
+  checks.push({
+    label: "Cursor Config (.cursorrules)",
+    status: fs.existsSync(cursorrules) ? "success" : "pending",
+  });
 
   const claudeMd = path.join(process.cwd(), "CLAUDE.md");
   const localClaude = path.join(process.cwd(), ".claude", "CLAUDE.md");
-  if (fs.existsSync(claudeMd) || fs.existsSync(localClaude)) {
-    p.log.success("Claude Code Config: 'CLAUDE.md' file detected.");
-  }
+  checks.push({
+    label: "Claude Code Config (CLAUDE.md)",
+    status: fs.existsSync(claudeMd) || fs.existsSync(localClaude) ? "success" : "pending",
+  });
 
   const antigravity = path.join(process.cwd(), ".agents", "AGENTS.md");
-  if (fs.existsSync(antigravity)) {
-    p.log.success("Gemini Antigravity Config: '.agents/AGENTS.md' detected.");
-  }
+  checks.push({
+    label: "Gemini Antigravity Config",
+    status: fs.existsSync(antigravity) ? "success" : "pending",
+  });
 
   // 4. Check Commit Hooks
   const commitHook = path.join(process.cwd(), ".git", "hooks", "prepare-commit-msg");
   if (fs.existsSync(commitHook)) {
     const content = fs.readFileSync(commitHook, "utf-8");
-    if (content.includes("ia-tool commit-all")) {
-      p.log.success("Git Hooks: 'ia-tool commit-all' hook is configured.");
-    } else {
-      p.log.info("Git Hooks: A prepare-commit-msg hook exists, but it doesn't run 'ia-tool'.");
-    }
+    checks.push({
+      label: "Git Commit Hook",
+      status: content.includes("ia-tool commit-all") ? "success" : "pending",
+    });
   } else {
-    p.log.info("Git Hooks: Commit hooks not configured. Run 'ia-tool hook install' to automate semantic commits.");
+    checks.push({
+      label: "Git Commit Hook",
+      status: "pending",
+    });
   }
+
+  // Render all checks as steps
+  console.log(
+    steps(
+      checks.map((c) => ({
+        label: c.label,
+        status: c.status,
+        details: c.detail,
+      }))
+    )
+  );
+
+  const issuesCount = checks.filter((c) => c.status === "error").length;
 
   p.outro(
     issuesCount === 0
