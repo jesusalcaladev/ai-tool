@@ -1,6 +1,6 @@
 {
   "name": "ia-tool",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "CLI tool to install AI agent configurations and commands, perform semantic commits, and generate changesets.",
   "type": "module",
   "files": [
@@ -12,7 +12,7 @@
   ],
   "main": "src/index.ts",
   "bin": {
-    "ia-tool": "./dist/index.js"
+    "ia-tool": "dist/index.js"
   },
   "scripts": {
     "start": "bun run src/index.ts",
